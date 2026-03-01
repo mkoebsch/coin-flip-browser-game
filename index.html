@@ -1,0 +1,644 @@
+<!DOCTYPE html>
+<html lang="de">
+<head>
+<meta charset="utf-8"/>
+<meta name="viewport" content="width=device-width, initial-scale=1"/>
+<title>Coin Flip</title>
+<link rel="icon" href="favicon.png">
+<link rel="alternate icon" href="favicon.ico" sizes="any">
+<link rel="apple-touch-icon" href="apple-touch-icon.png">
+<style>
+  :root{
+    --bg:#060a14; --panel:#0a1022; --ink:#eaf2ff; --muted:#9fb0cc;
+    --border:1px solid rgba(255,255,255,.10);
+    --grad1:#7cf7ff; --grad2:#b18bff; --grad3:#ff8ad6;
+    --good:#7bffb0; --bad:#ff7a9a; --warn:#ffd86b;
+  }
+  *{box-sizing:border-box}
+  html,body{height:100%}
+  body{ margin:0; font-family:Inter,system-ui,Segoe UI,Roboto,Helvetica,Arial,sans-serif; color:var(--ink);
+    background:
+      radial-gradient(1600px 1200px at 50% -20%, #132045 0%, transparent 58%),
+      radial-gradient(1400px 1000px at -20% -20%, #1a1f3d 0%, transparent 60%),
+      var(--bg);
+  }
+  header{position:sticky; top:0; z-index:10; padding:10px 14px; background:linear-gradient(180deg, rgba(10,16,32,.9), rgba(10,16,32,.6)); border-bottom:var(--border); backdrop-filter: blur(8px); display:flex; align-items:center; justify-content:space-between; gap:10px}
+  h1{margin:0; font-size:22px; letter-spacing:.2px; background:linear-gradient(135deg,var(--grad1),var(--grad2),var(--grad3)); -webkit-background-clip:text; background-clip:text; color:transparent;}
+  .toolbar{display:flex; gap:6px}
+  .tbtn{cursor:pointer; user-select:none; border:var(--border); background:#121a34; color:var(--ink); padding:8px 10px; border-radius:10px; font-weight:800}
+  .tbtn:active{transform:scale(.98)}
+  .app{width:min(1200px,100%); margin:12px auto; display:grid; gap:12px; grid-template-columns: 1.15fr .9fr; padding:0 12px}
+  @media (max-width:980px){ .app{ grid-template-columns:1fr; } }
+  .card{background: #0b1224; border:var(--border); border-radius:16px; padding:12px; box-shadow: 0 20px 50px rgba(0,0,0,.45)}
+  .hud{display:grid; grid-template-columns:repeat(5,1fr); gap:8px}
+  @media (max-width:560px){ .hud{ grid-template-columns:repeat(2,1fr);} }
+  .stat{padding:10px; border-radius:12px; border:var(--border); background:rgba(255,255,255,.04)}
+  .value{font-weight:900; font-size:18px}
+  .streakBox{display:flex; flex-wrap:wrap; gap:12px; align-items:center; justify-content:center; padding:12px; border-radius:12px; border:var(--border); background:linear-gradient(135deg, rgba(124,247,255,.12), rgba(177,139,255,.10), rgba(255,138,214,.10))}
+  .big{font-size:30px; font-weight:900}
+  .badge{display:inline-flex; gap:6px; align-items:center; padding:6px 10px; border-radius:999px; border:var(--border); background:rgba(255,255,255,.06)}
+  .btn{cursor:pointer; user-select:none; border:none; border-radius:12px; padding:12px 16px; font-weight:900; font-size:16px; transition:transform .06s ease, box-shadow .18s ease, opacity .15s}
+  .btn:active{ transform: scale(.98) }
+  .btn.primary{ background: radial-gradient(circle at 30% 30%, #ffe985, #fa742b); color:#2a1600; border:2px solid #ffdc7a; text-shadow:0 1px 1px rgba(255,255,255,.35); box-shadow:0 4px 10px rgba(255,200,0,.4), inset 0 1px 0 rgba(255,255,255,.25) }
+  .btn.gray{ background:#152141; color:var(--ink); border:var(--border) }
+  .btn.buy{ background:#18a874; color:#061612 }
+  .btn.disabled{ opacity:.55; pointer-events:none }
+  #btnFlip{ width:100% }
+  .tabs{ display:flex; gap:6px }
+  .tabs button{ flex:1; padding:10px; border-radius:10px; border:var(--border); background:#121a34; color:var(--muted); font-weight:800; cursor:pointer }
+  .tabs button.active{ background:linear-gradient(135deg,#7cf7ff33,#b18bff33,#ff8ad633); color:var(--ink) }
+  .grid{display:grid; grid-template-columns:repeat(auto-fit, minmax(240px,1fr)); gap:10px}
+  .tile{padding:10px; border-radius:12px; border:var(--border); background:rgba(255,255,255,.05); display:flex; flex-direction:column; gap:8px }
+  .spaced{display:flex; align-items:center; justify-content:space-between; gap:16px}
+  .priceWrap{display:flex; align-items:center; gap:14px; min-width:120px; justify-content:flex-end}
+
+  .bigflip{ position:relative; border-radius:14px; border:var(--border); overflow:hidden; background: radial-gradient(900px 600px at 50% -10%, rgba(124,247,255,.12), rgba(177,139,255,.08) 40%, transparent 70%), #081024 }
+
+  .flipwrap{ position:relative; width:100%; aspect-ratio:16/9; display:block; }
+  #play{ position:absolute; inset:0; width:100%; height:100%; background:transparent; }
+  #play{ display:block; width:100%; height:100%; background:transparent; }
+  .floatLabel{ position:absolute; left:50%; transform:translateX(-50%); top:34%; pointer-events:none; font-weight:900; font-size:28px; text-shadow:0 14px 34px rgba(0,0,0,.75); color:#eaf2ff; text-shadow:0 10px 30px rgba(0,0,0,.6); opacity:0; transition: opacity .2s, transform .8s ease-out}
+  .runTimer{ position:absolute; z-index:12; right:10px; bottom:10px; font-weight:800; font-size:12px; color:#cfe3ff; background:rgba(0,0,0,.25); border:1px solid rgba(255,255,255,.15); border-radius:8px; padding:4px 8px; backdrop-filter: blur(4px);}
+
+  .log{height:240px; overflow:auto; border-radius:12px; border:var(--border); background:rgba(255,255,255,.05); padding:8px; font-family:ui-monospace, SFMono-Regular, Menlo, Consolas, monospace; font-size:12px}
+
+  .log::-webkit-scrollbar{ width:10px }
+  .log::-webkit-scrollbar-track{ background:#0f1530; border-radius:10px }
+  .log::-webkit-scrollbar-thumb{ background:linear-gradient(180deg,#7cf7ff55,#b18bff55); border:1px solid rgba(255,255,255,.12); border-radius:10px }
+  .log{ scrollbar-width:thin; scrollbar-color:#7cf7ff55 #0f1530 }
+  .hidden{ display:none !important }
+  .overlay{position:fixed; inset:0; display:grid; place-items:center; background:rgba(5,10,20,.65); backdrop-filter: blur(10px); z-index:20}
+  .overlay .box{ width:min(92vw,520px); background:#0b1224; border:var(--border); border-radius:18px; padding:22px; text-align:center; box-shadow: 0 30px 80px rgba(0,0,0,.6) }
+  .huge{ font-size:38px; font-weight:900 }
+  .toast{ position:fixed; left:50%; bottom:16px; transform:translateX(-50%); padding:10px 14px; border-radius:12px; background:rgba(255,255,255,.08); border:var(--border); box-shadow:0 14px 40px rgba(0,0,0,.45); z-index:30 }
+
+  @media (max-width: 560px){
+    .app{ padding-bottom: 8px; }
+    .flipwrap{ aspect-ratio: 3 / 4; } /* taller play area */
+    #btnFlip{ font-size:18px; padding:14px 18px; }
+    .hud{ grid-template-columns: repeat(2,1fr); gap:10px; }
+    .value{ font-size:19px; }
+    .stat{ padding:12px; }
+    .log{ height: 300px; }
+    header{ padding:10px 12px; }
+  }
+  @media (min-width: 561px) and (max-width: 820px){
+    .flipwrap{ aspect-ratio: 4 / 5; }
+  }
+</style>
+</head>
+<body>
+<header>
+  <h1>Coin Flip</h1>
+  <div class="toolbar">
+    <button id="btnReset" class="tbtn" title="Reset">↺ <span data-i18n="reset">Reset</span></button>
+    <button id="btnLang" class="tbtn" title="Language">DE/EN</button>
+    <button id="btnMute" class="tbtn" title="Mute/Unmute">🔊</button>
+  </div>
+</header>
+
+<main class="app" id="app">
+  <section class="card">
+    <div class="hud">
+      <div class="stat"><div class="muted" data-i18n="money">Kontostand</div><div class="value" id="money">$0</div></div>
+      <div class="stat"><div class="muted" data-i18n="chance">Chance</div><div class="value" id="chance">30%</div></div>
+      <div class="stat"><div class="muted" data-i18n="speed">Tempo</div><div class="value" id="speed">2.0s</div></div>
+      <div class="stat"><div class="muted" data-i18n="base">Base</div><div class="value" id="baseVal">$1</div></div>
+      <div class="stat"><div class="muted" data-i18n="best">Beste Streak</div><div class="value" id="bestStreak">0</div></div>
+    </div>
+
+    <div class="streakBox" style="margin-top:10px">
+      <span class="muted" data-i18n="curStreak">Aktuelle Streak</span>
+      <span class="big" id="streak">0</span>
+      <span class="badge"><span data-i18n="multi">Multiplikator</span> <b id="multi">x1</b></span>
+      <span class="badge"><span data-i18n="mode">Modus</span> <b id="modeName">—</b></span>
+    </div>
+
+    <div class="bigflip" style="margin-top:10px; position:relative">
+      <div class="flipwrap">
+        <div id="runTimer" class="runTimer"></div>
+        <div id="float" class="floatLabel"></div>
+        <canvas id="play"></canvas>
+      </div>
+    </div>
+
+    <div style="margin-top:10px">
+      <button id="btnFlip" class="btn primary">🎲 <span data-i18n="flip">Flip!</span></button>
+    </div>
+
+    <div class="card" style="margin-top:10px">
+      <strong data-i18n="activity">Aktivität</strong>
+      <div class="log" id="log"></div>
+    </div>
+  </section>
+
+  <aside class="card">
+    <div class="tabs">
+      <button id="tabShop" class="active">🛒 <span data-i18n="shop">Shop</span></button>
+      <button id="tabAch">🏆 <span data-i18n="achievements">Erfolge</span></button>
+    </div>
+    <div id="paneShop">
+      <div class="grid" style="margin-top:8px">
+        <div class="tile"><div class="spaced"><div><strong>🎯 <span data-i18n="shop_chance">Chance</span></strong><br><span class="muted" data-i18n="shop_chance_desc">+5% (max 95%)</span></div><div class="priceWrap"><span id="priceChance"></span><button id="buyChance" class="btn gray"><span data-i18n="buy">Kaufen</span></button></div></div></div>
+        <div class="tile"><div class="spaced"><div><strong>⏱️ <span data-i18n="shop_speed">Speed</span></strong><br><span class="muted" data-i18n="shop_speed_desc">−0.2s (min 0.3s)</span></div><div class="priceWrap"><span id="priceSpeed"></span><button id="buySpeed" class="btn gray"><span data-i18n="buy">Kaufen</span></button></div></div></div>
+        <div class="tile"><div class="spaced"><div><strong>💰 <span data-i18n="shop_payout">Gewinn</span></strong><br><span class="muted" data-i18n="shop_payout_desc">+1 Base</span></div><div class="priceWrap"><span id="pricePayout"></span><button id="buyPayout" class="btn gray"><span data-i18n="buy">Kaufen</span></button></div></div></div>
+        <div class="tile"><div class="spaced"><div><strong>🧮 <span data-i18n="shop_multi">Multi</span></strong><br><span class="muted" data-i18n="shop_multi_desc">x2 Streak</span></div><div class="priceWrap"><span id="priceMulti"></span><button id="buyMulti" class="btn gray"><span data-i18n="buy">Kaufen</span></button></div></div></div>
+        <div class="tile"><div class="spaced"><div><strong>✨ <span data-i18n="shop_crit">Crit</span></strong><br><span class="muted" data-i18n="shop_crit_desc">+2% Crit (max 20%)</span></div><div class="priceWrap"><span id="priceCrit"></span><button id="buyCrit" class="btn gray"><span data-i18n="buy">Kaufen</span></button></div></div></div>
+        <div class="tile"><div class="spaced"><div><strong>🛡️ <span data-i18n="shop_shield">Schild</span></strong><br><span class="muted" data-i18n="shop_shield_desc">1× „Zahl“ ignorieren</span></div><div class="priceWrap"><span id="priceShield"></span><button id="buyShield" class="btn gray"><span data-i18n="buy">Kaufen</span></button></div></div></div>
+        <div class="tile"><div class="spaced"><div><strong>🎲 <span data-i18n="shop_lucky">Glück</span></strong><br><span class="muted" data-i18n="shop_lucky_desc">+10% für 5 Flips</span></div><div class="priceWrap"><span id="priceLucky"></span><button id="buyLucky" class="btn gray"><span data-i18n="buy">Kaufen</span></button></div></div></div>
+      </div>
+    </div>
+    <div id="paneAch" class="hidden">
+      <div class="grid" id="achGrid" style="margin-top:8px"></div>
+    </div>
+  </aside>
+</main>
+
+<div id="startOverlay" class="overlay" aria-hidden="false">
+  <div class="box">
+    <div class="huge" data-i18n="select_mode">Modus wählen</div>
+    <p class="muted" data-i18n="select_mode_d">„Normal“ endet bei 10× Kopf. „Endless“ geht ewig.</p>
+    <div style="display:flex; gap:10px; justify-content:center; margin-top:10px">
+      <button id="startNormal" class="btn gray" data-i18n="mode_normal">Normal</button>
+      <button id="startEndless" class="btn primary" data-i18n="mode_endless">Endless</button>
+    </div>
+  </div>
+</div>
+
+<div id="endOverlay" class="overlay hidden" aria-hidden="true">
+  <div class="box">
+    <div id="endTitle" class="huge">Ende</div>
+    <p id="endDesc" class="muted"></p>
+    <div style="display:flex; gap:10px; justify-content:center; margin-top:10px">
+      <button id="playAgain" class="btn primary" data-i18n="play_again">Nochmal!</button>
+    </div>
+  </div>
+</div>
+
+<div class="toast hidden" id="toast"></div>
+
+<script>
+(function(){
+function onReady(fn){ if(document.readyState!=='loading') fn(); else document.addEventListener('DOMContentLoaded', fn); }
+const clamp=(n,a,b)=>Math.min(b,Math.max(a,n));
+const rnd=(a)=>a[Math.floor(Math.random()*a.length)];
+const save=(k,v)=>localStorage.setItem(k, JSON.stringify(v));
+const load=(k,d)=>{ try{ const v=JSON.parse(localStorage.getItem(k)); return v==null?d:v; }catch(e){ return d; } };
+const D = new Proxy({}, { get: (t,p) => document.getElementById(p) });
+function logLine(s){ const d=document.createElement('div'); d.innerHTML=s; D.log.prepend(d); }
+function toastMsg(s){ const el=D.toast; el.textContent=s; el.classList.remove('hidden'); clearTimeout(el._t); el._t=setTimeout(()=>el.classList.add('hidden'), 1700); }
+function track(ev, props){
+  try{
+    if (window.umami && typeof umami.track === 'function') {
+      umami.track(ev, props);
+    }
+  }catch(_){} // fail-safe
+}
+const I18N={
+  de:{ select_mode:"Modus wählen", select_mode_d:"„Normal“ endet bei 10× Kopf hintereinander. „Endless“ geht ewig.",
+       mode_normal:"Normal", mode_endless:"Endless", play_again:"Nochmal spielen",
+       money:"Kontostand", chance:"Chance", speed:"Tempo", base:"Base", best:"Beste Streak", curStreak:"Aktuelle Streak", multi:"Multiplikator", mode:"Modus",
+       flip:"Flip", activity:"Aktivität", shop:"Shop", achievements:"Erfolge",
+       heads:"KOPF", tails:"ZAHL", buy:"Kaufen", reset:"Reset",
+       shop_chance:"Chance", shop_chance_desc:"+5% (max 95%)",
+       shop_speed:"Speed", shop_speed_desc:"−0.2s (min 0.3s)",
+       shop_payout:"Gewinn", shop_payout_desc:"+1 Base",
+       shop_multi:"Multi", shop_multi_desc:"x2 Streak",
+       shop_crit:"Crit", shop_crit_desc:"+2% Crit (max 20%)",
+       shop_shield:"Schild", shop_shield_desc:"1× „Zahl“ ignorieren",
+       shop_lucky:"Glück", shop_lucky_desc:"+10% für 5 Flips",
+       
+       end_perfect_title:"Ende!",
+       end_perfect_desc:"10× Kopf in Folge. WOW.",
+       log_tails_ignored:"ZAHL ignoriert · Schild: {n}",
+       log_streak_reset:"Streak zurückgesetzt",
+       log_heads:"+${amt} · Streak {s}",
+       
+       price_max:"MAX"
+  },
+  en:{ select_mode:"Select mode", select_mode_d:"“Normal” ends at 10× heads in a row. “Endless” runs forever.",
+       mode_normal:"Normal", mode_endless:"Endless", play_again:"Play again",
+       money:"Balance", chance:"Chance", speed:"Speed", base:"Base", best:"Best streak", curStreak:"Current streak", multi:"Multiplier", mode:"Mode",
+       flip:"Flip", activity:"Activity", shop:"Shop", achievements:"Achievements",
+       heads:"HEADS", tails:"TAILS", buy:"Buy", reset:"Reset",
+       shop_chance:"Chance", shop_chance_desc:"+5% (max 95%)",
+       shop_speed:"Speed", shop_speed_desc:"−0.2s (min 0.3s)",
+       shop_payout:"Payout", shop_payout_desc:"+1 base",
+       shop_multi:"Multi", shop_multi_desc:"x2 streak",
+       shop_crit:"Crit", shop_crit_desc:"+2% crit (max 20%)",
+       shop_shield:"Shield", shop_shield_desc:"Ignore one tails",
+       shop_lucky:"Lucky", shop_lucky_desc:"+10% for 5 flips",
+       
+       end_perfect_title:"Ending!",
+       end_perfect_desc:"10× heads in a row. WOW.",
+       log_tails_ignored:"TAILS ignored · Shield: {n}",
+       log_streak_reset:"Streak reset",
+       log_heads:"+${amt} · Streak {s}",
+       
+       price_max:"MAX"
+  }
+};
+let LANG = load('lang','de');
+
+let _timerId=null;
+function fmtTime(ms){ const s=Math.floor(ms/1000); const m=Math.floor(s/60); const sec=(s%60).toString().padStart(2,'0'); return m+':'+sec; }
+function startTimer(){ clearInterval(_timerId); if(!D.runTimer) return; const tick=()=>{ if(state.runStart){ D.runTimer.textContent='⏱️ '+fmtTime(Date.now()-state.runStart); } }; state.runStart = state.runStart||Date.now(); tick(); _timerId=setInterval(tick, 1000); }
+
+function t(k){ const v=I18N[LANG][k]; return v||k; }
+function translate(){ document.querySelectorAll('[data-i18n]').forEach(el=>{ el.textContent=t(el.getAttribute('data-i18n')); }); D.modeName.textContent= state.mode? t('mode_'+state.mode):'—'; }
+
+let audioCtx=null, isMuted=load('muted',false);
+function ensureAudio(){ if(!audioCtx) audioCtx=new (window.AudioContext||window.webkitAudioContext)(); }
+function beep(seq){ if(isMuted) return; ensureAudio(); const now=audioCtx.currentTime; let t0=now;
+  seq.forEach(step=>{ const o=audioCtx.createOscillator(); const g=audioCtx.createGain(); o.type=step.type||'sine'; o.frequency.value=step.f; g.gain.value=0; g.gain.setTargetAtTime(step.v||(step.v===0?0:0.001), t0, 0.001); g.gain.linearRampToValueAtTime(step.v||0.2, t0+0.01);
+    o.connect(g).connect(audioCtx.destination); o.start(t0); o.stop(t0+step.d);
+    g.gain.setTargetAtTime(0, t0+step.d-0.04, 0.01);
+    t0+=step.d - (step.overlap||0);
+  });
+}
+function sWin(){ beep([{f:440,d:.09},{f:660,d:.09},{f:990,d:.12,v:.25},{f:1320,d:.14,v:.22}]); }
+function sLose(){ beep([{type:'square',f:220,d:.12,v:.18},{type:'square',f:160,d:.18,v:.16},{type:'square',f:120,d:.22,v:.14}]); }
+
+const taunt = (() => {
+  const emojis = ['🫠','🤡','🪙','🙃','😵‍💫','🧠➡️🗑️','🥴','🫥','🤖','🧮','🪫','📉','🧊','🌀','🧲','🧯','🎲','🧩','🛰️','🔮','🧪','🕳️','🧱'];
+  const openers = ['Autsch','Oops','Uff','Oje','Oh nein','Uh oh','Hm','Bruh','Lol','Nö','Huch','Ay','Naja','Ui'];
+  const actors = ['Die Münze','RNG','Der Zufall','Schicksal.exe','Dein Glück','Der Algorithmus','Die Physik','Der Kosmos','Die Statistik','Wahrscheinlichkeit'];
+  const verbs = [
+    'macht gerade Urlaub','macht Mittag','hat dich kurz ausgeknockt','sagte „nein“','fühlt heute nichts','hat dich überhört',
+    'gönnt dir nix','hat dich geghostet','liegt quer','ist AFK','hat dich auf stumm gestellt','hat einen Blue Screen',
+    'ist im Flugmodus','hat sich neu gestartet','zieht den Stecker','macht einen Power-Nap'
+  ];
+  const enders = [
+    'nächster Versuch','einmal tief durchatmen','jetzt klappt es aber','komm klar, du schaffst das','Zeit für ein Comeback','das wird schon',
+    'shake it off','neue Runde, neues Glück','kurz resetten, dann weiter','Speedrun zum Sieg?'
+  ];
+  const advices = [
+    'Tipp: Chancen im Shop boosten','Tipp: Tempo runterdrehen','Tipp: Base erhöhen','Tipp: Multiplikator stapeln',
+    'Tipp: Kaffee macht das ganze angenehmer','Tipp: erst warmspielen','Tipp: erst mal strecken',
+    'Tipp: tief Luft holen'
+  ];
+  const roasts = [
+    'Skill auf Cooldown','NPC-Move des Tages','Coins haben auch Gefühle','Speedrun ins Minus',
+    'Plot Twist: kein Plot','Highscore im Pech'
+  ];
+  const shorts = [
+    'Schicksal.exe blieb hängen','RNG hat Feierabend','Bug? Nein, Feature','Das war Absicht. Bestimmt',
+    'Coin sagt: Nope','Genau so geplant','Mission fehlgeschlagen','Betriebsurlaub im Glückswerk',
+    'Crit? Negativ.','Niemand: … / Münze: Nein.'
+  ];
+  const meta = [
+    'Code sagt nein.','Der Zufall ist heute nicht auf deiner Seite.','Das Script hat Gefühle. Schlechte.',
+    'Pech holt dich ein.','Ich blame den Entwickler.','Debug-Modus: Du hast verloren.',
+    '404: Glück nicht gefunden.','Feature, kein Bug.'
+  ];
+  const commentator = [
+    'Und das war… kein Highlight.','Das Replay wird schmerzhaft.','Das Publikum hält den Atem an… oh.',
+    'Kommentatoren sind sprachlos – naja, fast.','Und da fällt die Münze – und du gleich mit.',
+    'Der Trainer fordert: weniger verlieren.',
+  ];
+  const cosmic = [
+    'Das Universum hat gewürfelt – und du warst die 1.',
+    'Paralleluniversen feiern deinen Loss.','Die Sterne standen falsch. Alle.',
+    'In einem anderen Leben hast du gewonnen. Nicht in diesem.',
+    'Die Zeitlinie hat dich gedodged.','Gravitation zieht dein Glück nach unten.'
+  ];
+  const pop = [
+    'Thanos schnippte – deine Chance verschwand.','Die Macht war heute nicht mit dir.',
+    'You lost the game. Literally.','Ein Pokémon würde jetzt weinen.',
+    'Mario würde sagen: „Mamma mia…“'
+  ];
+  const tech = [
+    'Akku vom Glück: 1%.','Ping zu RNG: 999 ms.','Glücksserver down – Wartung bis unbekannt.',
+	'Cache geleert, Hoffnung auch.','GPU rendert nur Niederlagen.',
+  ];
+  const finance = [
+    'Dein Glücksportfolio: tiefrot.','Dividende: 0 RNG-Cents.','Bärenmarkt im Münzsektor.',
+    'Stop-Loss ausgelöst. Wortwörtlich.','Dein Glück hat illiquide Mittel.'
+  ];
+  const soundfx = [
+    '*klirr* daneben','*pling* falsche Seite','*whoosh* Chance verfehlt','*bonk*','*crunch* Hoffnung weg',
+    '*tap tap* nix passiert'
+  ];
+  const gamer = [
+    'Du hast den unsichtbaren Boss getroffen: Pech.',
+    'Reroll? Gerade ausverkauft.'
+  ];
+  const zen = [
+    'Atme ein, akzeptiere den Loss, atme aus.','Der Weg ist das Ziel. Nur nicht heute.',
+    'Gelassenheit > Ergebnis.','Die Münze ist leer, du nicht.','Karma lädt nach.'
+  ];
+  const office = [
+    'Outlook-Termin: „Verlieren um 15:00“ – eingehalten.','Excel meldet #WERT! bei deinem Glück.',
+    'Meeting mit RNG: er kam nicht.','Urlaubsantrag fürs Glück abgelehnt.'
+  ];
+
+  const packs = [meta, commentator, cosmic, pop, tech, finance, soundfx, gamer, zen, office];
+
+  function pick(a){ return a[Math.floor(Math.random()*a.length)]; }
+  function pickWeighted(items) {
+    const total = items.reduce((s,x)=>s+x.w,0);
+    let r = Math.random()*total;
+    for (const it of items){ if ((r -= it.w) <= 0) return it.fn(); }
+    return items[items.length-1].fn();
+  }
+
+  const templates = [
+    { w: 2, fn: () => `${pick(emojis)} ${pick(openers)}… ${pick(actors)} ${pick(verbs)} – ${pick(enders)}.` },
+    { w: 2, fn: () => `${pick(emojis)} ${pick(roasts)} · ${pick(enders)}.` },
+    { w: 1, fn: () => `${pick(emojis)} ${pick(openers)} – ${pick(advices)}.` },
+    { w: 1, fn: () => `${pick(emojis)} ${pick(shorts)}.` },
+    { w: 1, fn: () => `${pick(emojis)} Heute nicht. ${pick(actors)} ${pick(verbs)}.` },
+    { w: 2, fn: () => `${pick(emojis)} ${pick(pick(packs))}` },
+    { w: 1, fn: () => `${pick(emojis)} ${pick(openers)}… ${pick(pick(packs))} · ${pick(enders)}.` },
+    { w: 1, fn: () => `${pick(emojis)} ${pick(commentator)} ${pick(soundfx) ? '('+pick(soundfx)+')' : ''}`.trim() },
+  ];
+
+  const legendary = [
+    '🐉 Legendärer Flip! RNG flieht in Panik – leider in die falsche Richtung.',
+    '🌪️ Du hast den Sturm gecoinflippt – und er hat dich zurückgeflippt.',
+    '🔮 Prophezeiung erfüllt: Nicht heute.',
+  ];
+
+  let last = null;
+
+  function uniqueLine(gen) {
+    for (let i=0;i<6;i++){
+      const line = gen();
+      if (line !== last) { last = line; return line; }
+    }
+    const l = gen();
+    last = l + ' ';
+    return last;
+  }
+
+  return function taunt(){
+    if (Math.random() < 0.01) {
+      return uniqueLine(() => pick(legendary));
+    }
+    if (Math.random() < 0.05) {
+      return uniqueLine(() => {
+        const a = pickWeighted(templates);
+        const b = pickWeighted(templates);
+        return `${a} ${b}`;
+      });
+    }
+    return uniqueLine(() => pickWeighted(templates));
+  };
+})();
+
+
+function updateMuteUI(){ document.getElementById('btnMute').textContent = isMuted?'🔇':'🔊'; save('muted',isMuted); }
+
+const defaults={ money:0, chance:.30, speedSec:2.0, payout:1, multiTier:0, bestStreak:0, streak:0, mode:null, gameOver:false, flipping:false,
+                 crit:0, shield:0, lucky:0, runStart:0,
+                 purchases:{chance:0,speed:0,payout:0,multi:0,crit:0,shield:0,lucky:0} };
+let state = Object.assign({}, defaults);
+const BASE={ chance:15, speed:12, payout:20, multi:30, crit:35, shield:40, lucky:25 };
+const GROWTH=1.9;
+const CAPS={ chance:.95, speed:.3, crit:.20 };
+
+const canvas=D.play, ctx=canvas.getContext('2d'), DPR=window.devicePixelRatio||1;
+function resize(){ const r=canvas.getBoundingClientRect(); if(r.width===0||r.height===0){ setTimeout(resize, 30); return; } canvas.width = Math.round(r.width*DPR); canvas.height = Math.round(r.height*DPR); resampleBuffers(); center.x=canvas.width*0.5; center.y=canvas.height*(window.innerWidth<=560?0.56:0.62); drawBG(); }
+addEventListener('resize', resize);
+
+try{
+  const wrap = canvas.parentElement;
+  if('ResizeObserver' in window && wrap){
+    const ro = new ResizeObserver(()=>resize());
+    ro.observe(wrap);
+  }else{
+    setInterval(()=>resize(), 400);
+  }
+}catch(e){}
+
+ctx.imageSmoothingEnabled=true; ctx.imageSmoothingQuality='high';
+
+const trail=document.createElement('canvas'), glow=document.createElement('canvas');
+const tctx=trail.getContext('2d'), gctx=glow.getContext('2d');
+function resampleBuffers(){ trail.width=canvas.width; trail.height=canvas.height; glow.width=canvas.width; glow.height=canvas.height; }
+
+let animId=null, t0=0, targetOutcome='heads', spins=6, theta=0, flipProgress=0, lastCoinPos={x:0,y:0,r:0};
+const center={ x: 0, y: 0 };
+
+function easeInOutQuint(x){ return x<.5? 16*x*x*x*x*x : 1-Math.pow(-2*x+2,5)/2; }
+
+function drawBG(){
+  if(!canvas.width) resize();
+  ctx.clearRect(0,0,canvas.width,canvas.height);
+  const grad=ctx.createRadialGradient(canvas.width*0.5, canvas.height*0.55, canvas.height*0.05, canvas.width*0.5, canvas.height*0.55, canvas.height*0.8);
+  grad.addColorStop(0,'rgba(20,28,54,.55)'); grad.addColorStop(.6,'rgba(12,18,36,.85)'); grad.addColorStop(1,'rgba(8,12,26,1)');
+  ctx.fillStyle=grad; ctx.fillRect(0,0,canvas.width,canvas.height);
+}
+
+function revealAllowed(tilt){ return flipProgress>=0.6 && Math.abs(tilt)>0.65; }
+function drawReliefOne(k, r){
+  k.save();
+  k.fillStyle='#5a3a00'; k.strokeStyle='rgba(255,255,255,.22)'; k.lineWidth = Math.max(2, r*0.09);
+  k.font = `900 ${Math.floor(r*1.25)}px Inter, system-ui`; k.textAlign='center'; k.textBaseline='middle';
+  k.fillText('1', 0, r*0.02); k.strokeText('1', 0, r*0.02);
+  k.restore();
+}
+function drawReliefFrog(k, r){
+  k.save();
+  const cx=0, cy=r*0.02;
+
+  k.fillStyle='#6b4700'; k.strokeStyle='#3d2800'; k.lineWidth = Math.max(1.5, r*0.05);
+  k.beginPath();
+  k.moveTo(cx-r*0.55, cy);
+  k.quadraticCurveTo(cx-r*0.35, cy-r*0.42, cx, cy-r*0.44);
+  k.quadraticCurveTo(cx+r*0.35, cy-r*0.42, cx+r*0.55, cy);
+  k.quadraticCurveTo(cx+r*0.35, cy+r*0.46, cx, cy+r*0.40);
+  k.quadraticCurveTo(cx-r*0.35, cy+r*0.46, cx-r*0.55, cy);
+  k.closePath(); k.fill(); k.stroke();
+
+  k.fillStyle='#f6ead0';
+  k.beginPath(); k.ellipse(cx-r*0.22, cy-r*0.22, r*0.20, r*0.13, 0, 0, Math.PI*2); k.fill();
+  k.beginPath(); k.ellipse(cx+r*0.22, cy-r*0.22, r*0.20, r*0.13, 0, 0, Math.PI*2); k.fill();
+
+  k.fillStyle='#2a1b00';
+  k.beginPath(); k.arc(cx-r*0.18, cy-r*0.22, r*0.06, 0, Math.PI*2); k.fill();
+  k.beginPath(); k.arc(cx+r*0.18, cy-r*0.22, r*0.06, 0, Math.PI*2); k.fill();
+
+  k.strokeStyle='#2e1b00'; k.lineWidth=Math.max(1.5, r*0.05);
+  k.beginPath(); k.moveTo(cx-r*0.42, cy+r*0.16); k.quadraticCurveTo(cx, cy+r*0.24, cx+r*0.42, cy+r*0.16); k.stroke();
+  k.strokeStyle='rgba(255,255,255,.25)'; k.lineWidth=Math.max(1.0, r*0.03);
+  k.beginPath(); k.moveTo(cx-r*0.38, cy+r*0.12); k.quadraticCurveTo(cx, cy+r*0.20, cx+r*0.38, cy+r*0.12); k.stroke();
+  k.restore();
+}
+
+function drawCoin(x,y,theta){ lastCoinPos.x=x; lastCoinPos.y=y;
+  const k=ctx; k.save(); k.translate(x,y);
+  const tilt = Math.cos(theta), scaleY = Math.max(0.12, Math.abs(tilt));
+  const r = Math.min(canvas.height,canvas.width)*0.095; lastCoinPos.r=r;
+
+  tctx.globalCompositeOperation='source-over'; tctx.fillStyle='rgba(0,0,0,.1)'; tctx.fillRect(0,0,trail.width,trail.height);
+  tctx.save(); tctx.translate(x,y); tctx.scale(1, scaleY); tctx.beginPath(); tctx.arc(0,0,r,0,Math.PI*2); tctx.fillStyle='rgba(124,247,255,.10)'; tctx.fill(); tctx.restore();
+  k.scale(1, scaleY);
+
+  k.save(); k.scale(1, 0.3); k.fillStyle='rgba(0,0,0,.40)'; k.beginPath(); k.ellipse(0, r*3.0, r*1.1, r*0.55, 0, 0, Math.PI*2); k.fill(); k.restore();
+
+  const rim = k.createRadialGradient(-r*0.2,-r*0.2, r*0.1, 0,0, r);
+  rim.addColorStop(0,'#fff7d4'); rim.addColorStop(.55,'#ffd86b'); rim.addColorStop(1,'#b3760c');
+  k.lineWidth = Math.max(2, r*0.16); k.strokeStyle='#5d3a00'; k.fillStyle=rim; k.beginPath(); k.arc(0,0,r,0,Math.PI*2); k.fill(); k.stroke();
+  const inner = k.createRadialGradient(-r*0.25,-r*0.25, r*0.05, 0,0, r*0.84);
+  inner.addColorStop(0,'#fff3c0'); inner.addColorStop(.6,'#ffdc7a'); inner.addColorStop(1,'#cc8e1a');
+  k.lineWidth = Math.max(2, r*0.10); k.strokeStyle='#6e4800'; k.fillStyle=inner; k.beginPath(); k.arc(0,0,r*0.82,0,Math.PI*2); k.fill(); k.stroke();
+
+  k.save(); k.globalAlpha=0.18; k.strokeStyle='rgba(0,0,0,.55)'; for(let i=1;i<=6;i++){ k.lineWidth = (i%2?1.1:0.8); k.beginPath(); k.ellipse(0,0,r*0.15*i, r*0.15*(i)*0.28, theta*0.05*i, 0, Math.PI*2); k.stroke(); } k.restore();
+  if(revealAllowed(tilt)){
+    if(targetOutcome==='heads'){ drawReliefFrog(k,r*0.82); }
+    else { drawReliefOne(k,r*0.82); }
+  }
+  
+  k.save(); k.rotate(theta*0.25); k.strokeStyle='rgba(255,255,255,.85)'; k.lineWidth=3; k.beginPath(); k.moveTo(-r*0.18,-r*0.28); k.lineTo(r*0.68,-r*0.68); k.stroke(); k.restore();
+  k.restore();
+
+  gctx.globalCompositeOperation='source-over'; gctx.clearRect(0,0,glow.width,glow.height); gctx.shadowColor='rgba(124,247,255,.8)'; gctx.shadowBlur=r*0.6;
+  gctx.beginPath(); gctx.arc(x, y*scaleY, r*0.9, 0, Math.PI*2); gctx.fillStyle='rgba(124,247,255,.08)'; gctx.fill();
+}
+function applyGlow(){ ctx.globalCompositeOperation='screen'; ctx.drawImage(glow,0,0); ctx.globalCompositeOperation='source-over'; }
+function renderTrails(){ ctx.globalCompositeOperation='lighter'; ctx.drawImage(trail,0,0); ctx.globalCompositeOperation='source-over'; }
+
+function animate(ts){
+  if(!t0) t0=ts;
+  const dur = state.speedSec*1000;
+  const p = Math.min(1, (ts-t0)/dur);
+  const ph = easeInOutQuint(p); flipProgress = ph;
+  drawBG();
+  if(!center.x||!center.y){ center.x=canvas.width*0.5; center.y=canvas.height*(window.innerWidth<=560?0.56:0.62); }
+  const y = center.y - Math.sin(ph*Math.PI) * canvas.height*0.28;
+  const x = center.x + Math.sin(ph*Math.PI)*canvas.width*0.00;
+  const totalTurns = spins + (targetOutcome==='heads'?0:0.5);
+  theta = ph * Math.PI * totalTurns*2;
+  drawCoin(x,y,theta);
+  if(p>=1){ finalizeFlip(); return; }
+  animId = requestAnimationFrame(animate);
+}
+
+
+function showFloat(text){
+  const el=D.float; if(!el) return;
+  const px = lastCoinPos.x / (window.devicePixelRatio||1);
+  const py = lastCoinPos.y / (window.devicePixelRatio||1);
+  el.style.left = (px)+'px';
+  el.style.top  = (py - Math.max(20, lastCoinPos.r*0.8)/(window.devicePixelRatio||1))+'px';
+  el.textContent=text;
+  el.style.opacity='1';
+  el.style.transform='translate(-50%,-8px)';
+  clearTimeout(el._t1); clearTimeout(el._t2);
+  el._t1 = setTimeout(()=>{ el.style.opacity='0'; el.style.transform='translate(-50%,-34px)'; }, 20);
+  el._t2 = setTimeout(()=>{ el.textContent=''; }, 900);
+}
+
+function streakMultiplier(){ if(state.streak<=1) return 1; return Math.pow(2, state.streak-1); }
+function totalMultiplier(){ return streakMultiplier() * Math.pow(2, state.multiTier); }
+function renderHUD(){ D.money.textContent='$'+state.money.toFixed(0); D.chance.textContent= Math.round(state.chance*100)+'%'; D.speed.textContent= state.speedSec.toFixed(1)+'s'; if(D.baseVal) D.baseVal.textContent='$'+state.payout.toFixed(0); D.streak.textContent= state.streak; D.bestStreak.textContent= state.bestStreak; D.multi.textContent= 'x'+totalMultiplier().toFixed(0); D.modeName.textContent= state.mode? t('mode_'+state.mode):'—'; D.btnFlip.classList.toggle('disabled', state.flipping || state.gameOver || !state.mode); }
+function startFlip(){
+  if(state.flipping || state.gameOver || !state.mode) return;
+  state.flipping=true; ensureAudio();
+  const effChance = state.chance + (state.lucky>0?0.10:0); if(state.lucky>0) state.lucky--;
+  const a = Math.random() < effChance;
+  targetOutcome = a ? 'heads' : 'tails';
+  spins = 6 + Math.floor(Math.random()*3);
+  track('flip_start', { mode: state.mode, chance: state.chance, speed: state.speedSec });
+  t0=0; animate(performance.now());
+}
+function finalizeFlip(){
+  state.flipping=false;
+  const isHeads = (targetOutcome==='heads');
+  if(isHeads){
+    state.streak++; state.bestStreak=Math.max(state.bestStreak,state.streak);
+    const crit = Math.random()<state.crit;
+    let earn = Math.floor(state.payout * totalMultiplier() * (crit?2:1));
+    state.money += earn; logLine(`✔️ ${t('flip')} → <b>${t('heads')}</b> · +$${earn}${crit?' ⚡':''} · Streak <b>${state.streak}</b>`);
+    showFloat(`+$${earn}`); sWin();
+  }else{
+    if(state.shield>0){ state.shield--; logLine(`🛡️ ${t('log_tails_ignored').replace('{n}', state.shield)}`); }
+    else{ logLine(`❌ ${t('flip')} → <b>${t('tails')}</b> · ${t('log_streak_reset')}`); logLine('🗯️ '+taunt()); state.streak=0; sLose(); }
+  }
+  if(state.mode==='normal' && state.streak>=10 && isHeads){ state.gameOver=true; showEnding(); }
+  renderHUD(); renderPrices(); checkAch(); persist();
+}
+
+function price(base,key){ return Math.round(base*Math.pow(GROWTH, state.purchases[key]||0)); }
+function canAfford(key){ return state.money >= price(BASE[key], key); }
+function setBuy(btn, enabled, label){
+  btn.classList.toggle('buy', enabled);
+  btn.classList.toggle('disabled', !enabled);
+  btn.disabled = !enabled;
+  btn.closest('.priceWrap').querySelector('span').textContent = label;
+}
+
+function renderPrices(){
+  const items=['chance','speed','payout','multi','crit','shield','lucky'];
+  items.forEach(k=>{
+    const btnId = 'buy'+k.charAt(0).toUpperCase()+k.slice(1);
+    const btn = document.getElementById(btnId);
+    if(!btn) return;
+    const cap = (k==='chance' && state.chance>=CAPS.chance) || (k==='speed' && state.speedSec<=CAPS.speed) || (k==='crit' && state.crit>=CAPS.crit);
+    const label = cap ? t('price_max') : '$'+price(BASE[k], k);
+    const wrapSpan = btn.closest('.priceWrap') && btn.closest('.priceWrap').querySelector('span');
+    if(wrapSpan) wrapSpan.textContent = label;
+    const enabled = !cap && canAfford(k);
+    btn.classList.toggle('buy', enabled);
+    btn.classList.toggle('disabled', !enabled);
+    btn.disabled = !enabled;
+  });
+}
+function buy(key, apply){ const p = price(BASE[key], key); if(state.money < p) return; state.money -= p; state.purchases[key]=(state.purchases[key]||0)+1; apply(); renderHUD(); renderPrices(); persist(); track('shop_buy', { key, price: p, purchases: state.purchases[key] }); }
+D.buyChance.onclick = ()=> buy('chance', ()=>{ state.chance=clamp(state.chance+0.05,0,CAPS.chance); logLine(`🎯 ${t('shop_chance')} → ${Math.round(state.chance*100)}%`); });
+D.buySpeed.onclick  = ()=> buy('speed',  ()=>{ state.speedSec=clamp(state.speedSec-0.2,CAPS.speed,10); logLine(`⏱️ ${t('speed')} → ${state.speedSec.toFixed(1)}s`); });
+D.buyPayout.onclick = ()=> buy('payout', ()=>{ state.payout += 1; logLine(`💰 ${t('shop_payout')} → $${state.payout}`); });
+D.buyMulti.onclick  = ()=> buy('multi',  ()=>{ state.multiTier += 1; logLine(`🧮 ${t('shop_multi')} Tier → ${state.multiTier}`); });
+D.buyCrit.onclick   = ()=> buy('crit',   ()=>{ state.crit=clamp(state.crit+0.02,0,CAPS.crit); logLine(`✨ ${t('shop_crit')} → ${(state.crit*100).toFixed(0)}%`); });
+D.buyShield.onclick = ()=> buy('shield', ()=>{ state.shield += 1; logLine(`🛡️ ${t('shop_shield')} +1 → ${state.shield}`); });
+D.buyLucky.onclick  = ()=> buy('lucky',  ()=>{ state.lucky += 5; logLine(`🎲 ${t('shop_lucky')} +10% · ${state.lucky} flips`); });
+
+const ACH=[
+  {id:'s3',name:{de:'Warmstart',en:'Warm-up'},desc:{de:'3er Streak',en:'3 streak'},cond:s=>s.bestStreak>=3,icon:'🔥'},
+  {id:'s5',name:{de:'Warmgelaufen',en:'Hitting stride'},desc:{de:'5er Streak',en:'5 streak'},cond:s=>s.bestStreak>=5,icon:'🏃'},
+  {id:'s10',name:{de:'Unaufhaltsam',en:'Unstoppable'},desc:{de:'10er Streak',en:'10 streak'},cond:s=>s.bestStreak>=10,icon:'🚀'},
+  {id:'money',name:{de:'Tausender',en:'Grand'},desc:{de:'$1000',en:'$1000'},cond:s=>s.money>=1000,icon:'💸'},
+  {id:'crit',name:{de:'Funkenflug',en:'Spark shower'},desc:{de:'Kritischer Treffer',en:'Critical hit'},cond:s=>s.crit>=.02,icon:'⚡'},
+  {id:'shield',name:{de:'Sicherheitsfan',en:'Safety first'},desc:{de:'Schild genutzt',en:'Used shield'},cond:s=>s.shield>0,icon:'🛡️'},
+  {id:'lucky',name:{de:'Glücksritter',en:'Lucky devil'},desc:{de:'Glück gekauft',en:'Bought luck'},cond:s=>s.lucky>0,icon:'🍀'},
+  {id:'speed',name:{de:'Schnell wie der Wind',en:'Fast as wind'},desc:{de:'Tempo ≤ 0.7s',en:'Speed ≤ 0.7s'},cond:s=>s.speedSec<=0.7,icon:'⏱️'},
+  {id:'multi',name:{de:'Multiplikator',en:'Multiplier'},desc:{de:'Tier ≥ 3',en:'Tier ≥ 3'},cond:s=>s.multiTier>=3,icon:'🧮'}
+];
+function renderAch(){ const grid=D.achGrid; grid.innerHTML=''; ACH.forEach(a=>{ const got=load('ach-'+a.id,false); const el=document.createElement('div'); el.className='tile'; el.style.opacity=got?1:.55; el.innerHTML=`<div class="spaced"><strong>${a.icon} ${(a.name[LANG]||a.name.de)}</strong><span>${got?'✅':'—'}</span></div><span class="muted">${(a.desc[LANG]||a.desc.de)}</span>`; grid.appendChild(el); }); }
+function checkAch(){ let changed=false; ACH.forEach(a=>{ const k='ach-'+a.id; if(load(k,false)) return; if(a.cond(state)){ save(k,true); logLine(`🏆 ${a.icon} ${(a.name[LANG]||a.name.de)}`); toastMsg(`${a.icon} ${(a.name[LANG]||a.name.de)}`); changed=true; }}); renderAch(); }
+
+function showShop(){ D.tabShop.classList.add('active'); D.tabAch.classList.remove('active'); D.paneShop.classList.remove('hidden'); D.paneAch.classList.add('hidden'); }
+function showAch(){ D.tabShop.classList.remove('active'); D.tabAch.classList.add('active'); D.paneShop.classList.add('hidden'); D.paneAch.classList.remove('hidden'); }
+D.tabShop.onclick = showShop; D.tabAch.onclick = showAch;
+
+function persist(){ save(`coinstreak-wow6-${state.mode||'none'}`, state); }
+function loadState(mode){ const ls=load(`coinstreak-wow6-${mode}`,null); if(ls) Object.assign(state, ls); }
+function hideStartOverlayHard(){ const o=D.startOverlay; if(!o) return; o.classList.add('hidden'); o.setAttribute('aria-hidden','true'); setTimeout(()=>{ if(o.parentNode) o.parentNode.removeChild(o); }, 0); }
+function startGame(mode){ Object.assign(state, JSON.parse(JSON.stringify(defaults))); state.mode=mode; track('mode_start', { mode });loadState(mode); hideStartOverlayHard(); state.runStart=Date.now(); startTimer(); renderHUD(); renderPrices(); renderAch(); checkAch(); translate(); resize(); drawBG(); persist(); setTimeout(hideStartOverlayHard, 50); requestAnimationFrame(resize); }
+
+function hardReset(){ Object.keys(localStorage).forEach(k=>{ if(k.startsWith('coinstreak-wow')||k.startsWith('ach-')||k==='lang'||k==='muted') localStorage.removeItem(k); }); location.reload(); }
+
+onReady(()=>{
+  document.getElementById('btnReset').onclick = hardReset;
+  document.getElementById('btnLang').onclick = ()=>{ LANG=(LANG==='de'?'en':'de'); save('lang',LANG); translate(); renderHUD(); renderAch(); };
+  document.getElementById('btnMute').onclick = ()=>{ isMuted=!isMuted; updateMuteUI(); };
+  updateMuteUI();
+  D.startNormal && (D.startNormal.onclick=()=>startGame('normal'));
+  D.startEndless && (D.startEndless.onclick=()=>startGame('endless'));
+  D.playAgain && (D.playAgain.onclick = ()=>{ D.endOverlay.classList.add('hidden'); D.endOverlay.setAttribute('aria-hidden','true'); startGame(state.mode||'endless'); });
+  D.btnFlip && (D.btnFlip.onclick = startFlip);
+  D.play.addEventListener('pointerdown', startFlip);
+  document.addEventListener('keydown', e=>{ if((e.key===' '||e.key==='Enter') && !state.flipping){ e.preventDefault(); startFlip(); }});
+  translate(); renderHUD(); renderPrices(); renderAch(); resize(); drawBG(); startTimer(); renderAch();
+});
+
+function showEnding(){
+  track('run_end', { mode: state.mode, bestStreak: state.bestStreak, money: state.money });
+  D.endTitle.textContent = t('end_perfect_title');
+  D.endDesc.textContent = t('end_perfect_desc');
+  D.endOverlay.classList.remove('hidden'); D.endOverlay.setAttribute('aria-hidden','false');
+}
+})();</script>
+</body>
+</html>
